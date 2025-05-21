@@ -1,2 +1,3 @@
 # Plant-Leaf-Disease-Diagnosis
 Here we have trained DCNN and CNN and saved the trained model in a .h5 file which we have later used in the flask interface which is integrated with the Quasar AI sourced from OpenRouter, which takes the predicted name of the leaf disease and adds it with the prompt which then generates a leaf disease report with its cure and prevention.
+DATASET USED- PlantVillage benchmark dataset
