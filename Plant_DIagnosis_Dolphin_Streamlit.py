@@ -76,7 +76,15 @@ def get_ai_suggestion(disease_name, language='English'):
                         "treatment":"उपचार की आवश्यकता नहीं है।"}
 
         headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
-        prompt = f"Provide concise Overview, Prevention, and Treatment for plant disease: {disease_name} in {language}."
+        # Normalize disease name for API
+        clean_disease = disease_name.replace("___", " ").replace("_", " ")
+
+        prompt = (
+        f"You are a plant disease expert. For the disease '{clean_disease}', "
+        f"write 3 clear sections in {language}:\n"
+        f"Overview:\nPrevention:\nTreatment:"
+        )
+
         data = {
             "model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
             "messages": [
@@ -119,8 +127,9 @@ def get_ai_suggestion(disease_name, language='English'):
                     sections[current_section] = line.strip()
 
         for key in sections:
-            if not sections[key]:
-                sections[key] = "No information available." if key=="overview" else "• No information available."
+            if not sections[key] or sections[key].lower().startswith("no information"):
+                sections[key] = f"Information not available for {clean_disease}."
+
 
         return sections
 
@@ -252,6 +261,7 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 
