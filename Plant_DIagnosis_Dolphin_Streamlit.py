@@ -169,48 +169,111 @@ def get_ai_suggestion(disease_name: str, language: str = "English"):
 
 
 def create_pdf(image: Image.Image, prediction: str, suggestion: dict, language="English") -> BytesIO:
+    """
+    Create a PDF report using FPDF.
+    - If a Unicode TTF (NotoSansDevanagari-Regular.ttf) is available in repo root, embed it and write full Unicode.
+    - Otherwise, sanitize text to latin-1 to avoid UnicodeEncodeError inside PyFPDF.
+    """
     pdf = FPDF()
     pdf.add_page()
 
+    # Try to use a bundled Unicode TTF font if present
     font_path = "NotoSansDevanagari-Regular.ttf"
-    if os.path.exists(font_path):
-        pdf.add_font("Noto", "", font_path, uni=True)
-        pdf.set_font("Noto", "", 16)
+    use_unicode_font = os.path.exists(font_path)
+
+    if use_unicode_font:
+        try:
+            # register and use the ttf font with uni=True
+            pdf.add_font("NotoUnicode", "", font_path, uni=True)
+            pdf.set_font("NotoUnicode", size=16)
+        except Exception as e:
+            # if registering fails, fall back to Arial and use sanitized text
+            use_unicode_font = False
+            pdf.set_font("Arial", size=16)
     else:
-        pdf.set_font("Arial", "", 16)
+        pdf.set_font("Arial", size=16)
 
     pdf.cell(0, 10, "Plant Disease Report", ln=True, align="C")
     pdf.ln(5)
 
+    # Save image temporarily and insert
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp_path = tmp.name
             image.save(tmp_path)
-        pdf.image(tmp_path, x=60, w=90)
+        # center-ish placement
+        try:
+            pdf.image(tmp_path, x=60, w=90)
+        except Exception:
+            # if image insertion fails, continue without image
+            pass
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
     disp_pred = normalize_disease_name(prediction)
-    pdf.set_font("Arial", "", 14)
-    pdf.ln(8)
-    pdf.cell(0, 10, f"Prediction: {disp_pred}", ln=True)
-    pdf.set_font("Arial", "", 12)
 
-    def as_text(label, body):
-        return f"{label}:\n{body}"
+    # Helper to sanitize text for non-unicode fallback
+    def _sanitize_for_latin1(text: str) -> str:
+        if text is None:
+            return ""
+        # ensure it's a string
+        if not isinstance(text, str):
+            text = str(text)
+        # encode to latin-1 ignoring non-encodable chars, then decode back
+        return text.encode("latin-1", errors="ignore").decode("latin-1")
 
-    pdf.ln(2)
-    pdf.multi_cell(0, 7, as_text("Overview", suggestion.get("overview", "-")))
-    pdf.ln(2)
-    pdf.multi_cell(0, 7, as_text("Prevention", suggestion.get("prevention", "-")))
-    pdf.ln(2)
-    pdf.multi_cell(0, 7, as_text("Treatment", suggestion.get("treatment", "-")))
+    # Prepare content
+    ov = suggestion.get("overview", "-")
+    pr = suggestion.get("prevention", "-")
+    tr = suggestion.get("treatment", "-")
 
-    out = BytesIO(pdf.output(dest="S").encode("latin-1", "ignore"))
-    out.seek(0)
-    return out
+    # If unicode font available, write raw strings (supports Hindi)
+    if use_unicode_font:
+        pdf.ln(8)
+        pdf.set_font("NotoUnicode", size=14)
+        pdf.cell(0, 10, f"Prediction: {disp_pred}", ln=True)
+        pdf.ln(4)
+        pdf.set_font("NotoUnicode", size=12)
+        pdf.multi_cell(0, 7, f"Overview:\n{ov}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 7, f"Prevention:\n{pr}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 7, f"Treatment:\n{tr}")
+    else:
+        # Fallback: sanitize contents to latin-1 so FPDF won't throw
+        safe_pred = _sanitize_for_latin1(disp_pred)
+        safe_ov = _sanitize_for_latin1(ov)
+        safe_pr = _sanitize_for_latin1(pr)
+        safe_tr = _sanitize_for_latin1(tr)
+
+        pdf.ln(8)
+        pdf.set_font("Arial", size=14)
+        pdf.cell(0, 10, f"Prediction: {safe_pred}", ln=True)
+        pdf.ln(4)
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 7, f"Overview:\n{safe_ov}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 7, f"Prevention:\n{safe_pr}")
+        pdf.ln(2)
+        pdf.multi_cell(0, 7, f"Treatment:\n{safe_tr}")
+
+    # Export PDF bytes
+    out_bytes = BytesIO()
+    # output returns a string in pyfpdf; ensure encoding is safe
+    pdf_data = pdf.output(dest="S")
+    if isinstance(pdf_data, str):
+        # pyfpdf returns str under the hood: encode to latin-1 ignoring errors
+        out_bytes.write(pdf_data.encode("latin-1", errors="ignore"))
+    else:
+        out_bytes.write(pdf_data)
+    out_bytes.seek(0)
+    return out_bytes
+
 
 
 # ---------------------------
@@ -291,3 +354,4 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
