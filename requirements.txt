@@ -1,7 +1,9 @@
 streamlit
-tensorflow
+tensorflow-cpu
 numpy
 pandas
 pillow
 scikit-learn
+matplotlib
 fpdf
+plotly
