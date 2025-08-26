@@ -89,7 +89,7 @@ def get_ai_suggestion(disease_name, language='English'):
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
-            data=json.dumps(data)
+            json=data
         )
         result = response.json()
         print("Raw API Response:", json.dumps(result, indent=2))
@@ -247,6 +247,7 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 
