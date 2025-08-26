@@ -13,7 +13,8 @@ import plotly.express as px
 import os
 
 # --- Load Model ---
-model = load_model(r"D:\Projects\MAJOR PROJECT\plant_disease_model.h5")
+MODEL_PATH = os.path.join("models", "plant_disease_model.h5")
+model = load_model(MODEL_PATH)
 
 # --- Class Names ---
 class_names = [ 'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
@@ -240,4 +241,5 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
 
