@@ -13,8 +13,9 @@ import plotly.express as px
 import os
 
 # --- Load Model ---
-MODEL_PATH = os.path.join("models", "plant_disease_model.h5")
+MODEL_PATH = "plant_disease_model.h5"
 model = load_model(MODEL_PATH)
+
 
 # --- Class Names ---
 class_names = [ 'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
