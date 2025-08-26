@@ -208,8 +208,13 @@ if image:
     top3 = [(class_names[i], pred_probs[0][i]) for i in top3_idx]
     prediction = top3[0][0]
 
+    # 🔥 Clean prediction string
+    prediction = prediction.strip().replace("\n", "").replace("\r", "")
+    st.write(f"DEBUG | Cleaned prediction → '{prediction}'")
+
     # AI Suggestions
     suggestion = get_ai_suggestion(prediction, language=language)
+
 
     # Severe disease alert
     severe_diseases = ["Late_blight", "Bacterial_spot", "Tomato_Yellow_Leaf_Curl_Virus"]
@@ -247,6 +252,7 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 
