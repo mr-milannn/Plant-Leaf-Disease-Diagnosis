@@ -4,3 +4,4 @@ numpy
 pandas
 pillow
 scikit-learn
+fpdf
