@@ -138,7 +138,7 @@ def create_pdf(image, prediction, suggestion, language='English'):
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    font_path = "NotoSans-Regular.ttf"   # since it is in repo root
+    font_path = "NotoSansDevanagari-Regular.ttf"   # since it is in repo root
     pdfmetrics.registerFont(TTFont("NotoSans", font_path))
 
     if not os.path.exists(font_path):
@@ -247,6 +247,7 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 
