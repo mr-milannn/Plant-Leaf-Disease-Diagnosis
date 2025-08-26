@@ -31,7 +31,7 @@ class_names = [ 'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_
 ]
 
 # --- OpenRouter API Key ---
-API_KEY = "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"
+API_KEY = st.secrets["api"]["key"]
 
 # --- Session state ---
 if 'history' not in st.session_state:
@@ -240,3 +240,4 @@ if st.session_state.history:
                  "Count": [v for v in counts.values()]}
     fig = px.bar(df_counts, x="Disease", y="Count", color="Count", text="Count")
     st.plotly_chart(fig, use_container_width=True)
+
