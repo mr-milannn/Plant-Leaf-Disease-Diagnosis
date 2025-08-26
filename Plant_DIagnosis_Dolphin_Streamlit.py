@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import tempfile
 from io import BytesIO
 
@@ -13,7 +12,6 @@ import plotly.express as px
 
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-
 from fpdf import FPDF
 
 
@@ -23,9 +21,9 @@ from fpdf import FPDF
 st.set_page_config(page_title="Plant Disease Classifier", layout="wide")
 
 # Read OpenRouter key safely
-API_KEY = st.secrets.get("api", {}).get("key", "")
+API_KEY = st.secrets["api"]["key"] if "api" in st.secrets and "key" in st.secrets["api"] else None
 if not API_KEY:
-    st.error("OpenRouter API key missing. Add it in `.streamlit/secrets.toml` under [api].")
+    st.error("❌ OpenRouter API key missing. Add it in `.streamlit/secrets.toml` under [api].")
     st.stop()
 
 MODEL_PATH = "plant_disease_model.h5"
@@ -61,12 +59,10 @@ model = load_tf_model(MODEL_PATH)
 # Helpers
 # ---------------------------
 def normalize_disease_name(name: str) -> str:
-    """Make class label human readable."""
     return name.replace("___", " ").replace("_", " ").strip()
 
 
 def local_fallback(disease: str, language: str):
-    """Fallback suggestions if API fails or is rate-limited."""
     if language == "Hindi":
         return {
             "overview": f"{disease} के लिए संक्षिप्त जानकारी।",
@@ -82,23 +78,15 @@ def local_fallback(disease: str, language: str):
 
 
 def parse_sections(text: str, language: str):
-    """
-    Parse Overview/Prevention/Treatment from model output.
-    Works for English + Hindi headers.
-    """
     sections = {"overview": "", "prevention": "", "treatment": ""}
-
-    # Normalize
     t = text.strip()
 
-    # Regex blocks for each header (case-insensitive, supports Hindi)
     heads = {
         "overview": r"(overview|summary|अवलोकन|सारांश)",
         "prevention": r"(prevention|रोकथाम)",
         "treatment": r"(treatment|उपचार)"
     }
 
-    # Build a combined regex to capture blocks between headers
     pattern = re.compile(
         rf"(?P<ov>{heads['overview']}\s*:?\s*(?P<ovtxt>.*?))(?=(?:{heads['prevention']}|{heads['treatment']}|$))"
         rf"|(?P<pr>{heads['prevention']}\s*:?\s*(?P<prtxt>.*?))(?=(?:{heads['treatment']}|$))"
@@ -107,9 +95,7 @@ def parse_sections(text: str, language: str):
     )
 
     matches = pattern.finditer(t)
-    found_any = False
     for m in matches:
-        found_any = True
         if m.group("ovtxt"):
             sections["overview"] = m.group("ovtxt").strip()
         if m.group("prtxt"):
@@ -117,8 +103,7 @@ def parse_sections(text: str, language: str):
         if m.group("trtxt"):
             sections["treatment"] = m.group("trtxt").strip()
 
-    # If headers not present, treat whole text as overview
-    if not found_any:
+    if not any(sections.values()):
         sections["overview"] = t
         if language == "Hindi":
             sections["prevention"] = "• सामान्य रोकथाम: साफ-सफाई, संतुलित पोषण, समय पर सिंचाई"
@@ -127,56 +112,35 @@ def parse_sections(text: str, language: str):
             sections["prevention"] = "• General prevention: sanitation, balanced nutrition, timely irrigation"
             sections["treatment"] = "• Treatment: as per recommended agri/plant protection guidelines"
 
-    # Guarantee non-empty
     for k, v in sections.items():
-        if not v or not v.strip():
+        if not v.strip():
             sections[k] = "No information available." if k == "overview" else "• No information available."
     return sections
 
 
 def get_ai_suggestion(disease_name: str, language: str = "English"):
-    """
-    Calls OpenRouter (Venice free) to fetch Overview/Prevention/Treatment.
-    Robust to API failures and returns local fallback when needed.
-    """
-    # Healthy shortcut
     if "healthy" in disease_name.lower():
-        if language == "Hindi":
-            return {
-                "overview": "यह पौधा स्वस्थ प्रतीत होता है!",
-                "prevention": "• उचित मात्रा में पानी दें\n• पर्याप्त धूप\n• संतुलित उर्वरक\n• नियमित निरीक्षण",
-                "treatment": "उपचार की आवश्यकता नहीं।"
-            }
-        else:
-            return {
-                "overview": "This plant appears healthy!",
-                "prevention": "• Water appropriately\n• Ensure proper sunlight\n• Balanced fertilization\n• Monitor regularly",
-                "treatment": "No treatment needed."
-            }
+        return local_fallback("Healthy Plant", language)
 
     clean = normalize_disease_name(disease_name)
-
-    # Venice free on OpenRouter
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        # These two help with some free-tier policies:
-        "HTTP-Referer": os.environ.get("OPENROUTER_SITE", "https://share.streamlit.io"),
+        "HTTP-Referer": "https://plant-leaf-disease-diagnosis.streamlit.app",
         "X-Title": "Plant Disease Classifier"
     }
 
     prompt = (
-        f"You are a plant disease expert. For the disease '{clean}', write three clear sections in {language}.\n\n"
-        f"Overview:\n"
-        f"Prevention:\n"
-        f"Treatment:\n"
+        f"You are a plant disease expert. For the disease '{clean}', "
+        f"write three clear sections in {language}.\n\n"
+        f"Overview:\nPrevention:\nTreatment:\n"
     )
 
     payload = {
         "model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
         "messages": [
-            {"role": "system", "content": "Respond in three sections: Overview, Prevention, Treatment. Keep it concise."},
+            {"role": "system", "content": "Respond in three sections: Overview, Prevention, Treatment."},
             {"role": "user", "content": prompt}
         ],
         "max_tokens": 400,
@@ -185,22 +149,13 @@ def get_ai_suggestion(disease_name: str, language: str = "English"):
 
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=25)
-        # Show minimal debug (no secrets)
         st.write("🧪 AI status:", resp.status_code)
 
         if resp.status_code != 200:
-            # Show why and fallback
-            try:
-                st.write("🧪 AI body:", resp.text[:400])
-            except Exception:
-                pass
+            st.write("🧪 AI body:", resp.text[:200])
             return local_fallback(clean, language)
 
         data = resp.json()
-        if "error" in data:
-            st.write("🧪 AI error:", data.get("error"))
-            return local_fallback(clean, language)
-
         choices = data.get("choices", [])
         if not choices:
             return local_fallback(clean, language)
@@ -214,17 +169,11 @@ def get_ai_suggestion(disease_name: str, language: str = "English"):
 
 
 def create_pdf(image: Image.Image, prediction: str, suggestion: dict, language="English") -> BytesIO:
-    """
-    Create a PDF report using only FPDF (no reportlab).
-    Uses NotoSansDevanagari if present, else falls back to Arial.
-    """
     pdf = FPDF()
     pdf.add_page()
 
-    # Font setup
     font_path = "NotoSansDevanagari-Regular.ttf"
-    has_noto = os.path.exists(font_path)
-    if has_noto:
+    if os.path.exists(font_path):
         pdf.add_font("Noto", "", font_path, uni=True)
         pdf.set_font("Noto", "", 16)
     else:
@@ -233,7 +182,6 @@ def create_pdf(image: Image.Image, prediction: str, suggestion: dict, language="
     pdf.cell(0, 10, "Plant Disease Report", ln=True, align="C")
     pdf.ln(5)
 
-    # Save image temporarily and insert
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
@@ -242,28 +190,16 @@ def create_pdf(image: Image.Image, prediction: str, suggestion: dict, language="
         pdf.image(tmp_path, x=60, w=90)
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
+            os.remove(tmp_path)
 
-    # Body
     disp_pred = normalize_disease_name(prediction)
-    if has_noto:
-        pdf.set_font("Noto", "", 14)
-    else:
-        pdf.set_font("Arial", "", 14)
-
+    pdf.set_font("Arial", "", 14)
     pdf.ln(8)
     pdf.cell(0, 10, f"Prediction: {disp_pred}", ln=True)
-
-    if has_noto:
-        pdf.set_font("Noto", "", 12)
-    else:
-        pdf.set_font("Arial", "", 12)
+    pdf.set_font("Arial", "", 12)
 
     def as_text(label, body):
-        return f"{label}:\n{body}".encode("utf-8", errors="ignore").decode("utf-8")
+        return f"{label}:\n{body}"
 
     pdf.ln(2)
     pdf.multi_cell(0, 7, as_text("Overview", suggestion.get("overview", "-")))
@@ -272,7 +208,6 @@ def create_pdf(image: Image.Image, prediction: str, suggestion: dict, language="
     pdf.ln(2)
     pdf.multi_cell(0, 7, as_text("Treatment", suggestion.get("treatment", "-")))
 
-    # Export
     out = BytesIO(pdf.output(dest="S").encode("latin-1", "ignore"))
     out.seek(0)
     return out
@@ -289,29 +224,20 @@ st.sidebar.markdown(
     "- Avoid background clutter"
 )
 
-st.sidebar.header("Symptom Checklist")
-spots = st.sidebar.checkbox("Spots on leaves")
-yellowing = st.sidebar.checkbox("Yellowing")
-wilting = st.sidebar.checkbox("Wilting")
-holes = st.sidebar.checkbox("Holes or eaten parts")
-
 language = st.sidebar.selectbox("Select Language for AI Suggestions", ["English", "Hindi"])
 
-st.title("🌿 Plant Disease Classifier - Feature Rich")
+st.title("🌿 Plant Disease Classifier")
 
 uploaded_file = st.file_uploader("Upload Plant Leaf Image", type=["jpg", "jpeg", "png"])
 capture = st.camera_input("Or capture from Webcam")
 
-# Keep session
 if "history" not in st.session_state:
     st.session_state.history = []
 if "disease_counts" not in st.session_state:
     st.session_state.disease_counts = {}
 
-# Image selection
 image = None
 if uploaded_file is not None:
-    # Important for uploaded files: reset pointer and handle EXIF orientation
     uploaded_file.seek(0)
     image = Image.open(uploaded_file)
     image = ImageOps.exif_transpose(image).convert("RGB")
@@ -323,34 +249,22 @@ elif capture is not None:
 if image is not None:
     st.image(image, caption="Uploaded / Captured Image", use_column_width=True)
 
-    # Preprocess to (150,150) as your model expects
     arr = np.array(image.resize((150, 150)), dtype=np.float32) / 255.0
     arr = np.expand_dims(arr, axis=0)
 
-    # Predict
     pred_probs = model.predict(arr)
     top3_idx = pred_probs[0].argsort()[-3:][::-1]
     top3 = [(CLASS_NAMES[i], float(pred_probs[0][i])) for i in top3_idx]
-    prediction = top3[0][0]
+    prediction = top3[0][0].strip()
 
-    # Clean prediction for downstream & show debug
-    prediction = prediction.strip().replace("\n", "").replace("\r", "")
     st.write(f"🧪 DEBUG | prediction → '{prediction}'")
 
-    # AI Suggestions (robust)
     suggestion = get_ai_suggestion(prediction, language=language)
 
-    # Severe flag
-    severe_diseases = ["Late_blight", "Bacterial_spot", "Tomato_Yellow_Leaf_Curl_Virus"]
-    if any(sd in prediction for sd in severe_diseases):
-        st.warning("⚠️ Severe disease detected! Take immediate action.")
-
-    # Top-3
     st.subheader("🔍 Top 3 Predictions")
     for cls, prob in top3:
         st.write(f"{normalize_disease_name(cls)} : {prob*100:.2f}%")
 
-    # AI Suggestions
     st.subheader("🤖 AI Suggestions")
     with st.expander("Overview", expanded=True):
         st.write(suggestion.get("overview", "-"))
@@ -359,7 +273,6 @@ if image is not None:
     with st.expander("Treatment", expanded=True):
         st.write(suggestion.get("treatment", "-").replace("-", "•"))
 
-    # PDF Download
     pdf_bytes = create_pdf(image, prediction, suggestion, language=language)
     st.download_button(
         "📄 Download PDF Report",
@@ -368,11 +281,9 @@ if image is not None:
         mime="application/pdf"
     )
 
-    # Session stats
     st.session_state.history.append({"prediction": prediction})
     st.session_state.disease_counts[prediction] = st.session_state.disease_counts.get(prediction, 0) + 1
 
-# Dashboard
 if st.session_state.history:
     st.subheader("📊 Session Disease Statistics")
     counts = st.session_state.disease_counts
