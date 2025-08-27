@@ -470,10 +470,10 @@ if st.button("🗑️ Clear Session History"):
     st.session_state.disease_counts = {}
     st.success("Session history cleared!")
     st.experimental_rerun()
-    else:
-        overview_pattern = r'(?:अवलोकन|सारांश)[:\-\s]*(.*?)(?=(?:रोकथाम|उपचार)|$)'
-        prevention_pattern = r'(?:रोकथाम)[:\-\s]*(.*?)(?=(?:उपचार)|$)'
-        treatment_pattern = r'(?:उपचार)[:\-\s]*(.*?)'
+else:
+    overview_pattern = r'(?:अवलोकन|सारांश)[:\-\s]*(.*?)(?=(?:रोकथाम|उपचार)|$)'
+    prevention_pattern = r'(?:रोकथाम)[:\-\s]*(.*?)(?=(?:उपचार)|$)'
+    treatment_pattern = r'(?:उपचार)[:\-\s]*(.*?)'
 
 def get_fallback_suggestion(disease_name, language='English'):
     """Provide fallback suggestions when AI is not available"""
@@ -1101,5 +1101,6 @@ if st.button("🗑️ Clear Session History"):
     st.session_state.disease_counts = {}
     st.success("Session history cleared!")
     st.experimental_rerun()
+
 
 
