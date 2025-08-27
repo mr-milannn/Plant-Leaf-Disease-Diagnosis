@@ -193,7 +193,7 @@ def parse_ai_response(content, language='English'):
     if language == "English":
         overview_pattern = r'(?:Overview|OVERVIEW)[:\-\s]*(.*?)(?=(?:Prevention|PREVENTION|Treatment|TREATMENT)|$)'
         prevention_pattern = r'(?:Prevention|PREVENTION)[:\-\s]*(.*?)(?=(?:Treatment|TREATMENT)|$)'
-        treatment_pattern = r'(?:Treatment|TREATMENT)[:\-\s]*(.*?)
+        treatment_pattern = r'(?:Treatment|TREATMENT)[:\-\s]*(.*?)'
 
 def get_fallback_suggestion(disease_name, language='English'):
     """Provide fallback suggestions when AI is not available"""
@@ -1101,3 +1101,4 @@ if st.button("🗑️ Clear Session History"):
     st.session_state.disease_counts = {}
     st.success("Session history cleared!")
     st.experimental_rerun()
+
