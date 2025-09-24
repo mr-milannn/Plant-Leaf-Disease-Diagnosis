@@ -78,8 +78,8 @@ Try it live here:
 
 1. Clone the repo  
    ```bash
-   git clone https://github.com/yourusername/plant-leaf-disease.git
-   cd plant-leaf-disease
+   git clone https://github.com/mr-milannn/Plant-Leaf-Disease-Diagnosis.git
+   cd Plant-Leaf-Disease-Diagnosis
    ```
    python3 -m venv venv
    source venv/bin/activate     # Linux / macOS  
@@ -88,4 +88,76 @@ Try it live here:
    pip install -r requirements.txt
 
    streamlit run app.py
+## Usage
 
+   Upload an image of a plant leaf (jpg/png) or capture via webcam
+
+   Wait for model prediction
+
+   View the predicted disease class, confidence score
+
+   Read the suggestions / cure / preventive measures
+
+   (Optional) Download the results or share
+
+   ## Dataset
+
+   The dataset contains images of healthy and diseased leaves (multiple classes)
+
+   Sources: (if publicly available) e.g. “PlantVillage” or your own collected dataset
+
+   Preprocessing includes resizing, normalization, augmentation (rotations, flips)
+
+   ## Evaluation & Metrics
+
+   Accuracy, precision, recall, F1-score for each class
+
+   Confusion matrix
+
+   ROC / AUC curves (if applicable)
+
+   Loss & accuracy plots during training
+
+   Include sample metrics or performance screenshots here.
+
+   ## Future Improvements
+
+   Add more disease classes / support more plant species
+
+   On-device model (mobile app)
+
+   Real-time inference on video stream
+
+   Better UI / user experience
+
+   More robust error handling (bad image, low lighting)
+
+   Multilingual support
+
+   ## Contributing
+
+   Contributions are welcome! You can:
+
+   Report issues or bugs
+
+   Suggest features
+
+   Improve UI / UX
+
+   Add more disease classes / data
+
+   Optimize model or inference speed
+
+   Please fork the project, make your changes, and create a pull request.
+
+   License
+
+   This project is licensed under the MIT License — see the LICENSE file for details.
+
+   ## Acknowledgments
+
+   Thanks to the creators of the dataset (e.g. PlantVillage)
+
+   Shoutout to libraries & frameworks (TensorFlow, Streamlit, Flask, etc.)
+
+   Inspiration & tutorials from online communities and papers
